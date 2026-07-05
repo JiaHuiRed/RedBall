@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' 'self'; script-src 'self'">
+  <title>Qiu</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div id="app">
+    <div class="header">
+      <div class="traffic-lights">
+        <span class="tl-dot red"></span>
+        <span class="tl-dot yellow"></span>
+        <span class="tl-dot green"></span>
+      </div>
+      <span class="title">QIU</span>
+    </div>
+
+    <div class="row cpu">
+      <span class="row-label"><span class="dot cpu-dot"></span>CPU</span>
+      <div class="bar-track"><div class="bar-fill" id="cpu-fill"></div></div>
+      <span class="row-val" id="cpu-val">0%</span>
+    </div>
+
+    <div class="row mem">
+      <span class="row-label"><span class="dot mem-dot"></span>MEM</span>
+      <div class="bar-track"><div class="bar-fill" id="mem-fill"></div></div>
+      <span class="row-val" id="mem-val">0%</span>
+    </div>
+
+    <div class="row gpu" id="gpu-row">
+      <span class="row-label"><span class="dot gpu-dot"></span>GPU</span>
+      <div class="bar-track"><div class="bar-fill" id="gpu-fill"></div></div>
+      <span class="row-val" id="gpu-val">--</span>
+    </div>
+
+    <div class="row vram" id="vram-row">
+      <span class="row-label"><span class="dot vram-dot"></span>VRAM</span>
+      <div class="bar-track"><div class="bar-fill" id="vram-fill"></div></div>
+      <span class="row-val" id="vram-val">--</span>
+    </div>
+
+    <div class="row net">
+      <span class="row-label"><span class="dot net-dot"></span>NET</span>
+      <div class="net-body">
+        <span class="net-dn">▼ <span id="net-rx">0</span></span>
+        <span class="net-up">▲ <span id="net-tx">0</span></span>
+      </div>
+    </div>
+  </div>
+
+  <div id="menu" class="menu hidden">
+    <div class="menu-item" id="menu-close">关闭</div>
+  </div>
+
+  <script type="module" src="./app.ts"></script>
+</body>
+</html>

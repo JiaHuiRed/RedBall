@@ -1,0 +1,229 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Bubble container ---- */
+#app {
+  width: 100vw;
+  height: 100vh;
+  padding: 0;
+  background: rgba(8, 10, 18, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 30px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    0 8px 40px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  cursor: grab;
+  -webkit-app-region: drag;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+#app:active {
+  cursor: grabbing;
+}
+
+/* ---- Header & macOS traffic lights ---- */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 4px;
+}
+
+.traffic-lights {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.tl-dot.red   { background: #ff5f57; }
+.tl-dot.yellow{ background: #ffbd2e; }
+.tl-dot.green { background: #28c840; }
+
+.title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* ---- Metric rows ---- */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px;
+  height: 30px;
+}
+
+.row-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 44px;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.cpu-dot { background: #4dd0e1; }
+.mem-dot { background: #81c784; }
+.gpu-dot { background: #ffb74d; }
+.vram-dot { background: #ce93d8; }
+.net-dot { background: #90a4ae; }
+
+/* ---- Progress bar ---- */
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 0%;
+  position: relative;
+}
+
+.bar-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 12px;
+  height: 100%;
+  border-radius: 4px;
+  filter: blur(4px);
+  opacity: 0.6;
+}
+
+.cpu .bar-fill {
+  background: linear-gradient(90deg, #4dd0e1, #26c6da);
+}
+.cpu .bar-fill::after {
+  background: #4dd0e1;
+}
+
+.mem .bar-fill {
+  background: linear-gradient(90deg, #81c784, #66bb6a);
+}
+.mem .bar-fill::after {
+  background: #81c784;
+}
+
+.gpu .bar-fill {
+  background: linear-gradient(90deg, #ffb74d, #ffa726);
+}
+.gpu .bar-fill::after {
+  background: #ffb74d;
+}
+
+.vram .bar-fill {
+  background: linear-gradient(90deg, #ce93d8, #ba68c8);
+}
+.vram .bar-fill::after {
+  background: #ce93d8;
+}
+
+/* ---- Value text ---- */
+.row-val {
+  width: 62px;
+  text-align: right;
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.85);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+/* ---- NET row (no bar) ---- */
+.net .bar-track {
+  flex: 1;
+  height: auto;
+  background: none;
+}
+
+.net-body {
+  display: flex;
+  gap: 12px;
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.net-dn { color: #4dd0e1; }
+.net-up { color: #ffb74d; }
+
+/* ---- Divider ---- */
+.divider {
+  height: 1px;
+  margin: 2px 12px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* ---- Right-click menu ---- */
+.menu {
+  position: fixed;
+  background: rgba(20, 22, 32, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 4px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  z-index: 100;
+  min-width: 80px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.menu-item {
+  -webkit-app-region: no-drag;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.85);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.hidden {
+  display: none;
+}
