@@ -12,6 +12,10 @@
 - **macOS 风格顶部栏** — 用红/黄/绿三色装饰灯替换了旧青色 orb 图标，保持纯色圆点无功能符号，QIU 标题保留。改于 `index.html`、`styles.css`。
 - **程序图标** — 生成青色圆点 PNG 图标，添加到窗口和任务栏。`scripts/gen-icon.js`、`resources/icon.png`。
 
+### 🛠 构建
+
+- **打包残留** — `build.bat` 打包前先 `rmdir /s /q dist`，防止旧版本 exe 遗留在输出目录。改于 `build.bat`。
+
 ---
 
 ## 0.0.2（2026-07-04）
