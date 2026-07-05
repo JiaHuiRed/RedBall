@@ -1,6 +1,6 @@
 # Qiu 更新日志
 
-## 0.0.3（2026-07-04）
+## 0.0.4（2026-07-05）
 
 ### 🐛 修复
 
@@ -9,12 +9,20 @@
 
 ### 🎨 界面
 
-- **macOS 风格顶部栏** — 用红/黄/绿三色装饰灯替换了旧青色 orb 图标，保持纯色圆点无功能符号，QIU 标题保留。改于 `index.html`、`styles.css`。
-- **程序图标** — 生成青色圆点 PNG 图标，添加到窗口和任务栏。`scripts/gen-icon.js`、`resources/icon.png`。
+- **macOS 风格顶部栏** — 用红/黄/绿三色装饰灯替换了旧青色 orb 图标，纯色圆点无功能符号。改于 `index.html`、`styles.css`。
+- **程序图标** — 生成青色圆点 PNG 图标，添加到窗口和任务栏。`resources/icon.png`。
 
 ### 🛠 构建
 
-- **打包残留** — `build.bat` 打包前先 `rmdir /s /q dist`，防止旧版本 exe 遗留在输出目录。改于 `build.bat`。
+- **打包清理** — `build.bat` 打包前删除 `dist` 目录，防止旧版本 exe 残留。改于 `build.bat`。
+
+---
+
+## 0.0.3（2026-07-04）
+
+### 🐛 修复
+
+- **CSS 不加载** — CSP 中 `style-src` 缺少 `'self'`，阻止了 `<link rel="stylesheet">` 加载外部样式表，导致布局完全塌陷。在 `index.html` 中添加 `'self'` 后恢复。
 
 ---
 
