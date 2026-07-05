@@ -6,6 +6,8 @@ let mainWindow: BrowserWindow | null = null
 let monitor: Monitor | null = null
 
 function createWindow() {
+  const iconPath = join(__dirname, '../../resources/icon.png')
+
   mainWindow = new BrowserWindow({
     width: 236,
     height: 184,
@@ -15,6 +17,7 @@ function createWindow() {
     resizable: false,
     skipTaskbar: false,
     hasShadow: false,
+    icon: iconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
