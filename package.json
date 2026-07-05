@@ -1,0 +1,36 @@
+{
+  "name": "qiu",
+  "version": "0.0.3",
+  "private": true,
+  "description": "桌面悬浮球 — 实时 CPU / 内存 / GPU / 网速监控",
+  "author": "RedCode",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron .",
+    "typecheck": "tsc --noEmit",
+    "dist": "electron-vite build && electron-builder"
+  },
+  "build": {
+    "appId": "com.qiu.monitor",
+    "productName": "Qiu",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": ["portable"],
+      "icon": null
+    },
+    "files": [
+      "out/**/*"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^42.4.1",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^5.0.0",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.0"
+  }
+}
