@@ -5,6 +5,7 @@ import { join } from 'path'
 let mainWindow: BrowserWindow | null = null
 let monitor: Monitor | null = null
 let tray: Tray | null = null
+let quitting = false
 
 function createWindow() {
   const iconPath = join(__dirname, '../../resources/icon.png')
@@ -27,7 +28,17 @@ function createWindow() {
 
   mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   mainWindow.setVisibleOnAllWorkspaces(true)
+  mainWindow.on('close', (e) => {
+    if (!quitting) {
+      e.preventDefault()
+      mainWindow?.hide()
+    }
+  })
 }
+
+app.on('before-quit', () => {
+  quitting = true
+})
 
 function createTray() {
   const iconPath = join(__dirname, '../../resources/icon.png')
@@ -52,11 +63,21 @@ function createTray() {
 
 function showWindow() {
   if (!mainWindow) return
+  try {
+    if (mainWindow.isDestroyed()) {
+      createWindow()
+      return
+    }
+  } catch {
+    createWindow()
+    return
+  }
   mainWindow.show()
   mainWindow.focus()
 }
 
 app.whenReady().then(() => {
+  quitting = false
   createWindow()
   createTray()
 
