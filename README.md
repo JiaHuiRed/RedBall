@@ -2,7 +2,7 @@
 
 > _A floating desktop monitor for CPU, memory, GPU, and network._
 
-[![Version](https://badgen.net/badge/版本/0.0.5/blue)](CHANGELOG.md)
+[![Version](https://badgen.net/badge/版本/0.0.6/blue)](CHANGELOG.md)
 
 **RedBall** 是一个悬浮在桌面的系统监控小工具。不用切窗口、不用开任务管理器 —— 瞄一眼就知道电脑状态。
 
@@ -16,7 +16,7 @@
 - **显存** — VRAM 已用 / 总量
 - **网速** — 下行 ▼ / 上行 ▲，自动 K/M 单位换算
 - 毛玻璃半透明外观，融合桌面
-- 鼠标拖拽移动、右键菜单关闭
+- 鼠标拖拽移动、右键菜单（置顶/开机自启/最小化到托盘）
 
 ---
 
@@ -41,7 +41,7 @@ npm start
 | 操作 | 效果 |
 |------|------|
 | 左键拖拽 | 移动悬浮球 |
-| 右键 | 弹出关闭菜单 |
+| 右键 | 弹出菜单（置顶/开机自启/最小化托盘） |
 
 ---
 

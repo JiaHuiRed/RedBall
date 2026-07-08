@@ -1,16 +1,17 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
-import { join } from 'path'
+import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from 'electron'
 import { Monitor } from './monitor'
+import { join } from 'path'
 
 let mainWindow: BrowserWindow | null = null
 let monitor: Monitor | null = null
+let tray: Tray | null = null
 
 function createWindow() {
   const iconPath = join(__dirname, '../../resources/icon.png')
 
   mainWindow = new BrowserWindow({
-    width: 236,
-    height: 184,
+    width: 560,
+    height: 56,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -28,8 +29,36 @@ function createWindow() {
   mainWindow.setVisibleOnAllWorkspaces(true)
 }
 
+function createTray() {
+  const iconPath = join(__dirname, '../../resources/icon.png')
+  let trayIcon: ReturnType<typeof nativeImage.createFromPath>
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath)
+    if (trayIcon.isEmpty()) throw new Error('empty icon')
+  } catch {
+    trayIcon = nativeImage.createEmpty()
+  }
+
+  tray = new Tray(trayIcon)
+  tray.setToolTip('RedBall')
+
+  const ctx = Menu.buildFromTemplate([
+    { label: '显示', click: () => showWindow() },
+    { label: '退出', click: () => app.quit() }
+  ])
+  tray.setContextMenu(ctx)
+  tray.on('double-click', () => showWindow())
+}
+
+function showWindow() {
+  if (!mainWindow) return
+  mainWindow.show()
+  mainWindow.focus()
+}
+
 app.whenReady().then(() => {
   createWindow()
+  createTray()
 
   monitor = new Monitor()
   monitor.start(stats => {
@@ -42,12 +71,25 @@ app.whenReady().then(() => {
     mainWindow.setPosition(x + dx, y + dy)
   })
 
+  ipcMain.on('toggle-always-on-top', () => {
+    if (!mainWindow) return
+    mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop())
+  })
+
   ipcMain.on('close-app', () => {
-    app.quit()
+    if (!mainWindow) return
+    mainWindow.hide()
+  })
+
+  ipcMain.on('get-autostart', (_event) => {
+    _event.returnValue = app.getLoginItemSettings().openAtLogin
+  })
+
+  ipcMain.on('toggle-autostart', (_event, enabled: boolean) => {
+    app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: true })
   })
 })
 
 app.on('window-all-closed', () => {
   monitor?.stop()
-  app.quit()
 })
