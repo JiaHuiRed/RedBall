@@ -1,6 +1,16 @@
 # Qiu 更新日志
 
-## 0.0.4（2026-07-05）
+## 0.0.5（2026-07-08）
+
+### 🐛 修复
+
+- **GPU 颜色条不变色** — `styles.css` 选择器为 `.gpu .bar-fill`，但 HTML 中 GPU 外层仅有 `metric` 无 `gpu` class，导致温度阈值样式永远不生效。给 GPU metric 补上 `gpu` class，温度 ≥55°C 变橙色、≥70°C 变红色。改于 `index.html`。
+
+### 🎨 界面
+
+- **移除 CPU 温度显示** — Windows 无可靠内置命令读取 CPU 核心温度，按需求直接移除第二行 CPU 温度栏，界面保留 GPU 温度 + 内存条。改于 `index.html`。
+
+---
 
 ### 🐛 修复
 
