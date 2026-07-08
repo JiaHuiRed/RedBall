@@ -1,10 +1,10 @@
-# Qiu — 桌面悬浮球
+# RedBall — 桌面悬浮球
 
 > _A floating desktop monitor for CPU, memory, GPU, and network._
 
 [![Version](https://badgen.net/badge/版本/0.0.5/blue)](CHANGELOG.md)
 
-**Qiu** 是一个悬浮在桌面的系统监控小工具。不用切窗口、不用开任务管理器 —— 瞄一眼就知道电脑状态。
+**RedBall** 是一个悬浮在桌面的系统监控小工具。不用切窗口、不用开任务管理器 —— 瞄一眼就知道电脑状态。
 
 ---
 

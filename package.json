@@ -1,5 +1,5 @@
 {
-  "name": "qiu",
+  "name": "redball",
   "version": "0.0.5",
   "private": true,
   "description": "桌面悬浮球 — 实时 CPU / 内存 / GPU / 网速监控",
@@ -13,8 +13,8 @@
     "dist": "electron-vite build && electron-builder"
   },
   "build": {
-    "appId": "com.qiu.monitor",
-    "productName": "Qiu",
+    "appId": "com.redball.monitor",
+    "productName": "RedBall",
     "directories": {
       "output": "dist"
     },
