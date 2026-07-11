@@ -1,5 +1,19 @@
 # RedBall 更新日志
 
+## 0.0.7（2026-07-11）
+
+### 🐛 修复
+
+- **GPU 温度显示 undefined°C** — `monitor.ts` 的 `getGpuInfo()` 和 `getStats()` 未返回 `gpuTemp` 字段，renderer 用 `!== null` 判断无法兜住 `undefined`；改为双等号 `!= null` 同时兜住 null 和 undefined，monitor 层补上 `gpuTemp` 查询与传递。修于 `monitor.ts`、`app.ts`。
+- **启动变慢（卡 2 秒）** — `start()` 中 `getNetSample()`（`execSync('netstat -e')`）阻塞主线程；移走阻塞调用，GPU 改为每 3 tick 查一次并缓存。修于 `monitor.ts`。
+
+### 🎨 界面
+
+- **布局调整** — 网速从第一行移到第二行（GPU 温度与内存之间），窗口宽度从 560px 缩至 320px，进度条宽度从 34px 缩至 28px，间距紧凑化。改于 `index.html`、`styles.css`、`index.ts`。
+- **新图标** — 生成全新深色红球瞳孔发光图标，替换旧青色圆点。`resources/icon.png`、`resources/icon-256.png`。
+
+---
+
 ## 0.0.6（2026-07-08）
 
 ### ✨ 新增

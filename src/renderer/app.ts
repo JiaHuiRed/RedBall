@@ -62,7 +62,7 @@ function updateStats(s: SystemStats) {
     gpuFill.style.width = s.gpuPercent + '%'
 
     // GPU temperature
-    gpuTempEl.textContent = s.gpuTemp !== null ? s.gpuTemp + '°C' : '--°C'
+    gpuTempEl.textContent = s.gpuTemp != null ? s.gpuTemp + '°C' : '--°C'
     const tc = gpuTempClass(s.gpuTemp)
     gpuTempEl.className = 'val temp ' + tc
 

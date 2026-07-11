@@ -1,6 +1,6 @@
 {
   "name": "redball",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "private": true,
   "description": "桌面悬浮球 — 实时 CPU / 内存 / GPU / 网速监控",
   "author": "RedCode",

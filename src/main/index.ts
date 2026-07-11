@@ -11,7 +11,7 @@ function createWindow() {
   const iconPath = join(__dirname, '../../resources/icon.png')
 
   mainWindow = new BrowserWindow({
-    width: 560,
+    width: 320,
     height: 56,
     frame: false,
     transparent: true,

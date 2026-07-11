@@ -14,6 +14,7 @@ export interface SystemStats {
   gpuPercent: number | null
   vramUsed: number | null
   vramTotal: number | null
+  gpuTemp: number | null
   netRx: number
   netTx: number
 }
@@ -24,10 +25,11 @@ export class Monitor {
   private timer: ReturnType<typeof setInterval> | null = null
   private cpuUtil = 0
   private cpuProcess: ChildProcess | null = null
+  private gpuCache: { gpuPercent: number | null; vramUsed: number | null; vramTotal: number | null; gpuTemp: number | null } = { gpuPercent: null, vramUsed: null, vramTotal: null, gpuTemp: null }
+  private tickCount = 0
 
   start(callback: (stats: SystemStats) => void) {
     this.startCpuMonitor()
-    this.prevNet = this.getNetSample()
     this.timer = setInterval(() => callback(this.getStats()), 1000)
   }
 
@@ -99,38 +101,33 @@ export class Monitor {
 
   private getGpuInfo() {
     if (!this.gpuAvailable) {
-      return { gpuPercent: null, vramUsed: null, vramTotal: null }
+      return { gpuPercent: null, vramUsed: null, vramTotal: null, gpuTemp: null }
     }
     try {
       const out = execSync(
-        'nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits',
+        'nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits',
         { encoding: 'utf8', timeout: 3000 }
       )
       const parts = out.trim().split(', ')
       return {
         gpuPercent: parts[0] ? parseFloat(parts[0]) : null,
         vramUsed: parts[1] ? parseFloat(parts[1]) : null,
-        vramTotal: parts[2] ? parseFloat(parts[2]) : null
+        vramTotal: parts[2] ? parseFloat(parts[2]) : null,
+        gpuTemp: parts[3] ? parseFloat(parts[3]) : null
       }
     } catch {
       this.gpuAvailable = false
-      return { gpuPercent: null, vramUsed: null, vramTotal: null }
+      return { gpuPercent: null, vramUsed: null, vramTotal: null, gpuTemp: null }
     }
   }
 
   private getStats(): SystemStats {
-    // CPU (from typeperf background process)
-    const cpuPercent = this.cpuUtil
+    this.tickCount++
 
-    // Memory
-    const totalMem = os.totalmem()
-    const usedMem = totalMem - os.freemem()
-    const memPercent = Math.round(100 * usedMem / totalMem)
+    // GPU: cache for 3 ticks to reduce blocking execSync
+    if (this.tickCount % 3 === 1) this.gpuCache = this.getGpuInfo()
 
-    // GPU
-    const gpu = this.getGpuInfo()
-
-    // Network
+    // Network (deferred: first net sample taken on first tick, not at startup)
     const netSample = this.getNetSample()
     let netRx = 0
     let netTx = 0
@@ -142,14 +139,23 @@ export class Monitor {
     }
     this.prevNet = netSample
 
+    // CPU (from typeperf background process — already async)
+    const cpuPercent = this.cpuUtil
+
+    // Memory (fast, sync, no I/O)
+    const totalMem = os.totalmem()
+    const usedMem = totalMem - os.freemem()
+    const memPercent = Math.round(100 * usedMem / totalMem)
+
     return {
       cpu: cpuPercent,
       memPercent,
       memUsed: parseFloat((usedMem / (1024 ** 3)).toFixed(1)),
       memTotal: parseFloat((totalMem / (1024 ** 3)).toFixed(1)),
-      gpuPercent: gpu.gpuPercent,
-      vramUsed: gpu.vramUsed,
-      vramTotal: gpu.vramTotal,
+      gpuPercent: this.gpuCache.gpuPercent,
+      vramUsed: this.gpuCache.vramUsed,
+      vramTotal: this.gpuCache.vramTotal,
+      gpuTemp: this.gpuCache.gpuTemp,
       netRx,
       netTx
     }
