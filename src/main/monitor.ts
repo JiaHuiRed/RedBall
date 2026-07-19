@@ -27,6 +27,8 @@ export class Monitor {
   private cpuProcess: ChildProcess | null = null
   private gpuCache: { gpuPercent: number | null; vramUsed: number | null; vramTotal: number | null; gpuTemp: number | null } = { gpuPercent: null, vramUsed: null, vramTotal: null, gpuTemp: null }
   private tickCount = 0
+  // 260719 Red 唤醒恢复：每 30 秒重置 gpuAvailable，避免 sleep/wake 后永久锁死
+  private static readonly GPU_RETRY_INTERVAL = 30
 
   start(callback: (stats: SystemStats) => void) {
     this.startCpuMonitor()
@@ -123,6 +125,9 @@ export class Monitor {
 
   private getStats(): SystemStats {
     this.tickCount++
+
+    // 260719 Red 每 30 秒重置 gpuAvailable，sleep/wake 后能自动恢复
+    if (this.tickCount % Monitor.GPU_RETRY_INTERVAL === 0) this.gpuAvailable = true
 
     // GPU: cache for 3 ticks to reduce blocking execSync
     if (this.tickCount % 3 === 1) this.gpuCache = this.getGpuInfo()

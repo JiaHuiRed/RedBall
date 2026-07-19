@@ -1,5 +1,18 @@
 # RedBall 更新日志
 
+## 0.0.8（2026-07-19）
+
+### 🐛 修复
+
+- **睡眠唤醒后 GPU/显存显示 `--`** — `gpuAvailable` 一旦被 `nvidia-smi` 失败锁死就永不恢复；改为每 30 秒重置，sleep/wake 后自动重新检测。修于 `monitor.ts`。
+- **托盘图标不可见** — `iconPath` 用 `__dirname` 相对路径，打包后指向 ASAR 内部导致图标为空；改为 `app.isPackaged` 判断，生产环境用 `process.resourcesPath`。修于 `index.ts`。
+
+### ✨ 新增
+
+- **窗口位置记忆** — 窗口坐标保存到 `userData/window-position.json`，下次启动自动恢复上次位置。改于 `index.ts`。
+
+---
+
 ## 0.0.7（2026-07-11）
 
 ### 🐛 修复

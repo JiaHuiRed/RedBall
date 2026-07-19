@@ -1,14 +1,44 @@
 import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from 'electron'
 import { Monitor } from './monitor'
 import { join } from 'path'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 
 let mainWindow: BrowserWindow | null = null
 let monitor: Monitor | null = null
 let tray: Tray | null = null
 let quitting = false
 
+// 260719 Red 窗口位置记忆：读写 userData 下的 window-position.json
+function getPositionFile(): string {
+  return join(app.getPath('userData'), 'window-position.json')
+}
+
+function loadPosition(): { x: number; y: number } | null {
+  try {
+    const data = readFileSync(getPositionFile(), 'utf8')
+    const pos = JSON.parse(data)
+    if (typeof pos.x === 'number' && typeof pos.y === 'number') return pos
+  } catch { /* 不存在或损坏 */ }
+  return null
+}
+
+function savePosition(win: BrowserWindow) {
+  const [x, y] = win.getPosition()
+  try {
+    writeFileSync(getPositionFile(), JSON.stringify({ x, y }))
+  } catch { /* 忽略写入失败 */ }
+}
+
+// 260719 Red 托盘图标路径：打包后用 process.resourcesPath
+function getIconPath(): string {
+  if (app.isPackaged) {
+    return join(process.resourcesPath, 'icon.png')
+  }
+  return join(__dirname, '../../resources/icon.png')
+}
+
 function createWindow() {
-  const iconPath = join(__dirname, '../../resources/icon.png')
+  const iconPath = getIconPath()
 
   mainWindow = new BrowserWindow({
     width: 320,
@@ -26,8 +56,20 @@ function createWindow() {
     }
   })
 
+  // 260719 Red 恢复上次保存的窗口位置
+  const savedPos = loadPosition()
+  if (savedPos) {
+    mainWindow.setPosition(savedPos.x, savedPos.y)
+  }
+
   mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   mainWindow.setVisibleOnAllWorkspaces(true)
+
+  // 260719 Red 窗口移动时保存位置
+  mainWindow.on('move', () => {
+    if (mainWindow) savePosition(mainWindow)
+  })
+
   mainWindow.on('close', (e) => {
     if (!quitting) {
       e.preventDefault()
@@ -41,7 +83,7 @@ app.on('before-quit', () => {
 })
 
 function createTray() {
-  const iconPath = join(__dirname, '../../resources/icon.png')
+  const iconPath = getIconPath()
   let trayIcon: ReturnType<typeof nativeImage.createFromPath>
   try {
     trayIcon = nativeImage.createFromPath(iconPath)
