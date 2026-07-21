@@ -1,6 +1,17 @@
 # RedBall 更新日志
 
-## 0.0.8（2026-07-19）
+## 0.0.9（2026-07-21）
+
+### 🐛 修复
+
+- **图标默认 Electron 万花筒/透明** — 之前用 `createFromPath()`/`createFromBuffer()` 读文件，受 ASAR 路径、Windows 图标缓存和 PNG 解码差异影响不可靠；改为 raw RGBA 像素生成（`createDotIcon()`），主窗口 32×32 红点+白瞳孔、托盘 16×16，无文件 IO、无缓存依赖。重写于 `index.ts`。
+- **VRAM 显示单位错误** — `nvidia-smi` 返回值为 MiB（如 16303 MiB ≈ 16 GB），前端当作 GB 显示导致数值错误；`getStats()` 中 `vramUsed/vramTotal` 除以 1024 转为 GB 单位。修于 `monitor.ts`。
+
+### 🎨 界面
+
+- **毛玻璃风格 + 紧凑布局** — 背景透明度降至 0.5、blur 28px、渐变底色 + 上沿高光、进度条渐变色微光晕、标签中文化（显存→VRAM、内存→MEM）带箭头▲▼、bar-track 加宽至 32px。改于 `styles.css`、`index.html`。
+
+---
 
 ### 🐛 修复
 

@@ -158,8 +158,9 @@ export class Monitor {
       memUsed: parseFloat((usedMem / (1024 ** 3)).toFixed(1)),
       memTotal: parseFloat((totalMem / (1024 ** 3)).toFixed(1)),
       gpuPercent: this.gpuCache.gpuPercent,
-      vramUsed: this.gpuCache.vramUsed,
-      vramTotal: this.gpuCache.vramTotal,
+      // 260721 Red nvidia-smi 返回 MiB，转 GB 匹配 fmtMem 的单位假设
+      vramUsed: this.gpuCache.vramUsed !== null ? parseFloat((this.gpuCache.vramUsed / 1024).toFixed(1)) : null,
+      vramTotal: this.gpuCache.vramTotal !== null ? parseFloat((this.gpuCache.vramTotal / 1024).toFixed(1)) : null,
       gpuTemp: this.gpuCache.gpuTemp,
       netRx,
       netTx

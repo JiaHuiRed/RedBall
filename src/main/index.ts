@@ -29,7 +29,37 @@ function savePosition(win: BrowserWindow) {
   } catch { /* 忽略写入失败 */ }
 }
 
-// 260719 Red 托盘图标路径：打包后用 process.resourcesPath
+// 260721 Red 生成纯色圆点图标（BGRA raw buffer），避免文件/格式依赖
+function createDotIcon(size: number, r: number, g: number, b: number): Electron.NativeImage {
+  const buf = Buffer.alloc(size * size * 4)
+  const cx = (size - 1) / 2
+  const cy = (size - 1) / 2
+  const radius = (size - 2) / 2
+  const pupilCx = cx
+  const pupilCy = cy - size * 0.1
+  const pupilR = Math.max(1, size * 0.18)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4
+      const dx = x - cx, dy = y - cy
+      if (Math.sqrt(dx * dx + dy * dy) <= radius) {
+        const px = x - pupilCx, py = y - pupilCy
+        if (Math.sqrt(px * px + py * py) <= pupilR) {
+          // 白色瞳孔 — Windows 字节序为 BGRA
+          buf[i] = 255; buf[i + 1] = 255; buf[i + 2] = 255; buf[i + 3] = 255
+        } else {
+          // B G R A
+          buf[i] = b; buf[i + 1] = g; buf[i + 2] = r; buf[i + 3] = 255
+        }
+      } else {
+        buf[i] = 0; buf[i + 1] = 0; buf[i + 2] = 0; buf[i + 3] = 0
+      }
+    }
+  }
+  return nativeImage.createFromBuffer(buf, { width: size, height: size })
+}
+
+// 260719 Red 托盘图标路径：打包后用 process.resourcesPath（备选，主用生成图标）
 function getIconPath(): string {
   if (app.isPackaged) {
     return join(process.resourcesPath, 'icon.png')
@@ -38,7 +68,8 @@ function getIconPath(): string {
 }
 
 function createWindow() {
-  const iconPath = getIconPath()
+  // 260721 Red 改用 raw RGBA 生成，不受 PNG 解码/文件路径影响
+  const winIcon = createDotIcon(32, 220, 40, 40)
 
   mainWindow = new BrowserWindow({
     width: 320,
@@ -49,12 +80,14 @@ function createWindow() {
     resizable: false,
     skipTaskbar: false,
     hasShadow: false,
-    icon: iconPath,
+    icon: winIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false
     }
   })
+
+  mainWindow.setIcon(winIcon)
 
   // 260719 Red 恢复上次保存的窗口位置
   const savedPos = loadPosition()
@@ -83,14 +116,8 @@ app.on('before-quit', () => {
 })
 
 function createTray() {
-  const iconPath = getIconPath()
-  let trayIcon: ReturnType<typeof nativeImage.createFromPath>
-  try {
-    trayIcon = nativeImage.createFromPath(iconPath)
-    if (trayIcon.isEmpty()) throw new Error('empty icon')
-  } catch {
-    trayIcon = nativeImage.createEmpty()
-  }
+  // 260721 Red 改用 raw RGBA 生成托盘图标，16x16 适合通知区域
+  const trayIcon = createDotIcon(16, 220, 40, 40)
 
   tray = new Tray(trayIcon)
   tray.setToolTip('RedBall')
@@ -119,6 +146,8 @@ function showWindow() {
 }
 
 app.whenReady().then(() => {
+  // 260721 Red 设置 AppUserModelId，Windows 任务栏才能正确显示自定义图标
+  app.setAppUserModelId('com.redball.monitor')
   quitting = false
   createWindow()
   createTray()
