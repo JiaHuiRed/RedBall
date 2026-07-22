@@ -6,3 +6,8 @@ Thumbs.db
 *.log
 .env
 LiteMonitor/
+resources/presentmon/
+.attachments/
+.redcode/stats/
+script/gen-icon.py
+scripts/gen-icon.js

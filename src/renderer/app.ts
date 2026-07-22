@@ -9,6 +9,8 @@ interface SystemStats {
   gpuTemp: number | null
   netRx: number
   netTx: number
+  fps: number | null
+  fpsApp: string | null
 }
 
 interface ElectronAPI {
@@ -40,6 +42,16 @@ function gpuTempClass(temp: number | null): string {
 }
 
 function updateStats(s: SystemStats) {
+  // 260722 Red FPS
+  const fpsEl = document.getElementById('fps-val')!
+  if (s.fps !== null && s.fpsApp !== null) {
+    fpsEl.textContent = s.fps + ''
+    fpsEl.title = s.fpsApp
+  } else {
+    fpsEl.textContent = '--'
+    fpsEl.title = ''
+  }
+
   // CPU
   document.getElementById('cpu-val')!.textContent = s.cpu + '%'
   document.getElementById('cpu-fill')!.style.width = s.cpu + '%'

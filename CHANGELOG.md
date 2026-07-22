@@ -1,5 +1,18 @@
 # RedBall 更新日志
 
+## 0.0.10（2026-07-22）
+
+### ✨ 新增
+
+- **FPS 实时监控** — 集成 PresentMon 2.3.1，通过 ETW 捕获 GPU 帧 Present 事件，实时计算各进程 FPS 并取最高值显示。`monitor.ts`。
+- **PresentMon 提权启动器** — 生成 `.bat` 脚本经 cmd 提权启动，一次 UAC 完成清理旧进程 + 启动新实例。`--stop_existing_session` 处理 ETW session 残留。`monitor.ts`。
+
+### 🐛 修复
+
+- **PresentMon --output_file 独占锁导致 FPS 不可读** — PresentMon 以独占写锁打开 CSV，Node.js/任何进程无法读取；改用 `--output_stdout` + cmd `>` 重定向（共享读模式），实现实时 CSV 增量解析。`monitor.ts`。
+
+---
+
 ## 0.0.9（2026-07-21）
 
 ### 🐛 修复

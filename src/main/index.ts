@@ -3,6 +3,7 @@ import { Monitor } from './monitor'
 import { join } from 'path'
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 
+
 let mainWindow: BrowserWindow | null = null
 let monitor: Monitor | null = null
 let tray: Tray | null = null
@@ -72,7 +73,7 @@ function createWindow() {
   const winIcon = createDotIcon(32, 220, 40, 40)
 
   mainWindow = new BrowserWindow({
-    width: 320,
+    width: 380,
     height: 56,
     frame: false,
     transparent: true,
@@ -153,9 +154,15 @@ app.whenReady().then(() => {
   createTray()
 
   monitor = new Monitor()
+
+  // 260722 Red PresentMon 路径（打包 vs 开发）
+  const presentMonPath = app.isPackaged
+    ? join(process.resourcesPath, 'presentmon', 'PresentMon.exe')
+    : join(__dirname, '../../resources/presentmon/PresentMon.exe')
+
   monitor.start(stats => {
     mainWindow?.webContents.send('stats-update', stats)
-  })
+  }, presentMonPath)
 
   ipcMain.on('move-window', (_event, dx: number, dy: number) => {
     if (!mainWindow) return
