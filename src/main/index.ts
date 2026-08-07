@@ -8,6 +8,7 @@ let mainWindow: BrowserWindow | null = null
 let monitor: Monitor | null = null
 let tray: Tray | null = null
 let quitting = false
+let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 // 260719 Red 窗口位置记忆：读写 userData 下的 window-position.json
 function getPositionFile(): string {
@@ -92,9 +93,11 @@ function createWindow() {
   mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   mainWindow.setVisibleOnAllWorkspaces(true)
 
-  // 260719 Red 窗口移动时保存位置
+  // 260719 Red 窗口移动时保存位置；260807 Red 加 300ms 防抖，拖动过程不必每像素写盘
   mainWindow.on('move', () => {
-    if (mainWindow) savePosition(mainWindow)
+    if (!mainWindow) return
+    if (saveTimer) clearTimeout(saveTimer)
+    saveTimer = setTimeout(() => savePosition(mainWindow!), 300)
   })
 
   mainWindow.on('close', (e) => {
@@ -139,44 +142,53 @@ function showWindow() {
   mainWindow.focus()
 }
 
-app.whenReady().then(() => {
-  // 260802 Red AppUserModelId 必须在创建窗口之前设置，否则任务栏图标可能丢失
-  app.setAppUserModelId('com.redball.monitor')
-  quitting = false
-  createWindow()
-  createTray()
+// 260807 Red 单实例锁：自启与手动启动同时发生时只保留一个实例，避免双份采集进程互抢窗口位置
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  // 260807 Red 二次启动时唤起已有实例的窗口
+  app.on('second-instance', () => showWindow())
 
-  monitor = new Monitor()
+  app.whenReady().then(() => {
+    // 260802 Red AppUserModelId 必须在创建窗口之前设置，否则任务栏图标可能丢失
+    app.setAppUserModelId('com.redball.monitor')
+    quitting = false
+    createWindow()
+    createTray()
 
-  monitor.start(stats => {
-    mainWindow?.webContents.send('stats-update', stats)
+    monitor = new Monitor()
+
+    monitor.start(stats => {
+      mainWindow?.webContents.send('stats-update', stats)
+    })
+
+    ipcMain.on('move-window', (_event, dx: number, dy: number) => {
+      if (!mainWindow) return
+      const [x, y] = mainWindow.getPosition()
+      mainWindow.setPosition(x + dx, y + dy)
+    })
+
+    ipcMain.on('toggle-always-on-top', () => {
+      if (!mainWindow) return
+      mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop())
+    })
+
+    ipcMain.on('close-app', () => {
+      if (!mainWindow) return
+      mainWindow.hide()
+    })
+
+    ipcMain.on('get-autostart', (_event) => {
+      _event.returnValue = app.getLoginItemSettings().openAtLogin
+    })
+
+    ipcMain.on('toggle-autostart', (_event, enabled: boolean) => {
+      app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: true })
+    })
   })
 
-  ipcMain.on('move-window', (_event, dx: number, dy: number) => {
-    if (!mainWindow) return
-    const [x, y] = mainWindow.getPosition()
-    mainWindow.setPosition(x + dx, y + dy)
+  app.on('window-all-closed', () => {
+    monitor?.stop()
   })
-
-  ipcMain.on('toggle-always-on-top', () => {
-    if (!mainWindow) return
-    mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop())
-  })
-
-  ipcMain.on('close-app', () => {
-    if (!mainWindow) return
-    mainWindow.hide()
-  })
-
-  ipcMain.on('get-autostart', (_event) => {
-    _event.returnValue = app.getLoginItemSettings().openAtLogin
-  })
-
-  ipcMain.on('toggle-autostart', (_event, enabled: boolean) => {
-    app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: true })
-  })
-})
-
-app.on('window-all-closed', () => {
-  monitor?.stop()
-})
+}

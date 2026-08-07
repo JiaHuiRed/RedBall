@@ -29,10 +29,11 @@ export class Monitor {
   private tickCount = 0
   // 260719 Red 唤醒恢复：每 30 秒重置 gpuAvailable，避免 sleep/wake 后永久锁死
   private static readonly GPU_RETRY_INTERVAL = 30
-  // 260802 Red 网速采样缓存：netstat -e 是阻塞调用，每 3 秒采样一次即可
-  private netCache: NetSample = { rx: 0, tx: 0 }
-  private static readonly NET_SAMPLE_INTERVAL = 3
-
+ // 260802 Red 网速采样缓存：netstat -e 是阻塞调用，每 3 秒采样一次即可
+ private netCache: NetSample = { rx: 0, tx: 0 }
+ private static readonly NET_SAMPLE_INTERVAL = 3
+ // 260807 Red 网速速率缓存：采样间隔内的 tick 复用最近一次速率，避免显示 0
+ private netRate: { rx: number; tx: number } = { rx: 0, tx: 0 }
   start(callback: (stats: SystemStats) => void) {
     this.startCpuMonitor()
     this.timer = setInterval(() => callback(this.getStats()), 1000)
@@ -50,9 +51,10 @@ export class Monitor {
   }
 
   private startCpuMonitor() {
+    // 260807 Red 改用 % Processor Time：此前 % Processor Utility 可能超 100% 且与任务管理器读数不对齐
     try {
       const proc = spawn('typeperf', [
-        '\\Processor Information(_Total)\\% Processor Utility',
+        '\\Processor Information(_Total)\\% Processor Time',
         '-si', '1'
       ], {
         stdio: ['ignore', 'pipe', 'ignore'],
@@ -135,21 +137,22 @@ export class Monitor {
     // GPU: cache for 3 ticks to reduce blocking execSync
     if (this.tickCount % 3 === 1) this.gpuCache = this.getGpuInfo()
 
-    // Network (cached every 3 ticks to avoid blocking execSync on every tick)
-    let netSample = this.netCache
-    if (this.tickCount % Monitor.NET_SAMPLE_INTERVAL === 0) {
-      netSample = this.getNetSample()
-      this.netCache = netSample
-    }
-    let netRx = 0
-    let netTx = 0
-    if (this.prevNet) {
-      const rxDelta = netSample.rx - this.prevNet.rx
-      const txDelta = netSample.tx - this.prevNet.tx
-      netRx = rxDelta > 0 ? Math.round(rxDelta / 1024) : 0
-      netTx = txDelta > 0 ? Math.round(txDelta / 1024) : 0
-    }
-    this.prevNet = netSample
+   // Network (cached every 3 ticks to avoid blocking execSync on every tick)
+   let netSample = this.netCache
+   if (this.tickCount % Monitor.NET_SAMPLE_INTERVAL === 0) {
+     netSample = this.getNetSample()
+     this.netCache = netSample
+     if (this.prevNet) {
+       const rxDelta = netSample.rx - this.prevNet.rx
+       const txDelta = netSample.tx - this.prevNet.tx
+       // 260807 Red 除以采样间隔换算成每秒速率（此前 3 秒累计值直接当 1 秒显示，膨胀 3 倍）
+       this.netRate.rx = rxDelta > 0 ? Math.round(rxDelta / 1024 / Monitor.NET_SAMPLE_INTERVAL) : 0
+       this.netRate.tx = txDelta > 0 ? Math.round(txDelta / 1024 / Monitor.NET_SAMPLE_INTERVAL) : 0
+     }
+     this.prevNet = netSample
+   }
+   const netRx = this.netRate.rx
+   const netTx = this.netRate.tx
 
     // CPU (from typeperf background process — already async)
     const cpuPercent = this.cpuUtil

@@ -32,8 +32,9 @@ function fmtMem(gb: number): string {
 }
 
 function fmtSpeed(kbps: number): string {
-  if (kbps >= 1024) return (kbps / 1024).toFixed(1) + 'M'
-  return kbps + 'K'
+  // 260807 Red 补上单位 /s 和 B：此前只显示 "12.5M"，容易被误读成 Mb
+  if (kbps >= 1024) return (kbps / 1024).toFixed(1) + 'MB/s'
+  return kbps + 'KB/s'
 }
 
 function gpuTempClass(temp: number | null): string {
