@@ -98,15 +98,6 @@ body {
   background: linear-gradient(90deg, #26c6da, #4dd0e1);
 }
 
-/* 260722 Red FPS 数值 — 高亮显示 */
-.fps .val {
-  font-size: 11px;
-  font-weight: 700;
-  color: #fbbf24;
-  min-width: 28px;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.3);
-}
-
 .mem .bar-fill {
   background: linear-gradient(90deg, #66bb6a, #81c784);
 }

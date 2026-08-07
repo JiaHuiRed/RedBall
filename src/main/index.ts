@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from 'electron'
 import { Monitor } from './monitor'
 import { join } from 'path'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 
 
 let mainWindow: BrowserWindow | null = null
@@ -60,26 +60,19 @@ function createDotIcon(size: number, r: number, g: number, b: number): Electron.
   return nativeImage.createFromBuffer(buf, { width: size, height: size })
 }
 
-// 260719 Red 托盘图标路径：打包后用 process.resourcesPath（备选，主用生成图标）
-function getIconPath(): string {
-  if (app.isPackaged) {
-    return join(process.resourcesPath, 'icon.png')
-  }
-  return join(__dirname, '../../resources/icon.png')
-}
-
 function createWindow() {
   // 260721 Red 改用 raw RGBA 生成，不受 PNG 解码/文件路径影响
   const winIcon = createDotIcon(32, 220, 40, 40)
 
+  // 260802 Red 隐藏任务栏图标：窗口可通过托盘显示/隐藏，无需任务栏入口
   mainWindow = new BrowserWindow({
     width: 380,
     height: 56,
     frame: false,
-    transparent: true,
+    transparent: false,
     alwaysOnTop: true,
     resizable: false,
-    skipTaskbar: false,
+    skipTaskbar: true,
     hasShadow: false,
     icon: winIcon,
     webPreferences: {
@@ -147,7 +140,7 @@ function showWindow() {
 }
 
 app.whenReady().then(() => {
-  // 260721 Red 设置 AppUserModelId，Windows 任务栏才能正确显示自定义图标
+  // 260802 Red AppUserModelId 必须在创建窗口之前设置，否则任务栏图标可能丢失
   app.setAppUserModelId('com.redball.monitor')
   quitting = false
   createWindow()
@@ -155,14 +148,9 @@ app.whenReady().then(() => {
 
   monitor = new Monitor()
 
-  // 260722 Red PresentMon 路径（打包 vs 开发）
-  const presentMonPath = app.isPackaged
-    ? join(process.resourcesPath, 'presentmon', 'PresentMon.exe')
-    : join(__dirname, '../../resources/presentmon/PresentMon.exe')
-
   monitor.start(stats => {
     mainWindow?.webContents.send('stats-update', stats)
-  }, presentMonPath)
+  })
 
   ipcMain.on('move-window', (_event, dx: number, dy: number) => {
     if (!mainWindow) return

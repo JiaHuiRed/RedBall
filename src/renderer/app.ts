@@ -9,8 +9,6 @@ interface SystemStats {
   gpuTemp: number | null
   netRx: number
   netTx: number
-  fps: number | null
-  fpsApp: string | null
 }
 
 interface ElectronAPI {
@@ -22,7 +20,11 @@ interface ElectronAPI {
   toggleAutostart: (enabled: boolean) => void
 }
 
-const api: ElectronAPI = (window as any).electronAPI
+interface WindowWithElectron extends Window {
+  electronAPI?: ElectronAPI
+}
+
+const api = (window as WindowWithElectron).electronAPI!
 
 function fmtMem(gb: number): string {
   if (gb >= 10) return gb.toFixed(0) + 'G'
@@ -42,16 +44,6 @@ function gpuTempClass(temp: number | null): string {
 }
 
 function updateStats(s: SystemStats) {
-  // 260722 Red FPS
-  const fpsEl = document.getElementById('fps-val')!
-  if (s.fps !== null && s.fpsApp !== null) {
-    fpsEl.textContent = s.fps + ''
-    fpsEl.title = s.fpsApp
-  } else {
-    fpsEl.textContent = '--'
-    fpsEl.title = ''
-  }
-
   // CPU
   document.getElementById('cpu-val')!.textContent = s.cpu + '%'
   document.getElementById('cpu-fill')!.style.width = s.cpu + '%'

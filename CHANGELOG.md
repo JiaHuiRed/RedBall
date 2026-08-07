@@ -1,5 +1,45 @@
 # RedBall 更新日志
 
+## 0.0.13（2026-08-02）
+
+### ✨ 新增
+
+- **任务栏隐藏** — 窗口不出现在任务栏，通过托盘图标显示/隐藏，保持桌面悬浮纯净。改于 `index.ts`。
+- **网速采样缓存** — `netstat -e` 是阻塞调用，改为每 3 秒采样一次并缓存，减少主线程阻塞。改于 `monitor.ts`。
+
+### 🎨 界面
+
+- **去掉透明窗口** — `transparent: false`，避免 Windows DWM 低性能透明合成路径。改于 `index.ts`。
+- **渲染层类型加固** — 新增 `WindowWithElectron` 类型，明确 electronAPI 桥接。改于 `app.ts`。
+
+### 🛠 其他
+
+- **AppUserModelId 时机修正** — 必须在创建窗口之前设置，否则 Windows 任务栏图标显示 Electron 默认图标。改于 `index.ts`。
+
+---
+
+## 0.0.12（2026-07-26）
+
+### 🔥 移除
+
+- **FPS 监控功能** — 由于 PresentMon 需要管理员权限启动 ETW Trace Session，UAC 提权流程在全屏游戏场景下无法稳定工作（弹窗不可见/被忽略），导致 FPS 始终不可用。移除所有 FPS 相关代码（监听、CSV 解析、UI 显示）及 PresentMon 依赖。精简 `monitor.ts`、`index.html`、`app.ts`。
+
+---
+
+## 0.0.11（2026-07-26）
+
+### 🐛 修复
+
+- **FPS 始终显示 `--`** — 根本原因：PresentMon 需管理员权限创建 ETW Trace Session，原有 bat+UAC 提权方式依赖用户手动点"确定"，游戏全屏时 UAC 弹窗被遮挡或忽略，PresentMon 未启动。重构为三层启动策略：(1) 直接 spawn PresentMon（无需管理员时可用）；(2) 创建 Windows 计划任务 `RedBallPresentMon`（一次 UAC，以后开机静默以 SYSTEM 权限启动）；(3) 回退 bat+UAC 立即启动。`monitor.ts`。
+- **CSV 列索引硬编码导致错位** — `readFpsCsv()` 写死 `vals[10]` 作为 `MsBetweenPresents`，但 PresentMon 2.3.1 默认 v2 metrics 格式该列不在索引 10；改为动态从表头查找 `MsBetweenPresents` 列位置。`monitor.ts`。
+
+### ✨ 新增
+
+- **PresentMon 计划任务管理** — `checkTaskExists()` 检测任务状态、`createScheduledTask()` 自动注册开机启动任务，实现静默后台运行。`monitor.ts`。
+- **直接 spawn PresentMon 模式** — 若当前用户无需管理员即可捕获 ETW，直接启动子进程并将 stdout pipe 到 CSV，避免 UAC 弹窗。`monitor.ts`。
+
+---
+
 ## 0.0.10（2026-07-22）
 
 ### ✨ 新增
