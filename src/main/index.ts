@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from 'electron'
 import { Monitor } from './monitor'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
+import { applyAcrylic, isWin11 } from './acrylic'
 
 
 let mainWindow: BrowserWindow | null = null
@@ -66,11 +67,13 @@ function createWindow() {
   const winIcon = createDotIcon(32, 220, 40, 40)
 
   // 260802 Red 隐藏任务栏图标：窗口可通过托盘显示/隐藏，无需任务栏入口
+  // 260808 Red 分平台毛玻璃：Win11 原生 acrylic（不透明窗口）；Win10 需透明窗口 + DWM 亚克力（见 acrylic.ts）
   mainWindow = new BrowserWindow({
     width: 380,
     height: 56,
     frame: false,
-    transparent: false,
+    transparent: !isWin11(),
+    backgroundMaterial: isWin11() ? 'acrylic' : 'none',
     alwaysOnTop: true,
     resizable: false,
     skipTaskbar: true,
@@ -81,6 +84,8 @@ function createWindow() {
       sandbox: false
     }
   })
+
+  applyAcrylic(mainWindow)
 
   mainWindow.setIcon(winIcon)
 

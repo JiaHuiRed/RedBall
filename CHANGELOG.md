@@ -1,5 +1,21 @@
 # RedBall 更新日志
 
+## 0.0.15（2026-08-08）
+
+### ✨ 新增
+
+- **亚克力毛玻璃背景** — 面板底色由暗淡的半透明渐变改为真亚克力毛玻璃：Win11 走 Electron 原生 `setBackgroundMaterial('acrylic')`，Win10 走 FFI（koffi）调 DWM `SetWindowCompositionAttribute` 启用 `ACCENT_ENABLE_ACRYLICBLURBEHIND`。两平台均兼容。新增 `acrylic.ts`，接入于 `index.ts`。
+
+### 🎨 界面
+
+- **背景透明度下调** — 面板背景 alpha 由 0.48/0.52 降至 0.28/0.32，让 DWM 亚克力模糊透出，观感更通透。改于 `styles.css`。
+
+### 🛠 其他
+
+- **koffi 依赖接入** — 新增 `koffi`（N-API FFI，无需编译）支撑 Win10 亚克力调用；主进程构建配置加 `externalizeDepsPlugin()`，打包配置加 `asarUnpack` 使 koffi 原生二进制免打包进 asar。改于 `electron.vite.config.ts`、`package.json`。
+
+---
+
 ## 0.0.14（2026-08-07）
 
 ### ✨ 新增

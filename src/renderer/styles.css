@@ -18,10 +18,11 @@ body {
   width: 100vw;
   height: 100vh;
   padding: 8px 12px;
-  /* 260721 Red 毛玻璃质感：更低透明度 + 更强模糊 + 渐变底色 */
+  /* 260808 Red 分平台亚克力：窗口背后是 DWM 亚克力，此处半透明渐变只做色调叠加，
+     不透明度不宜过高，否则盖住毛玻璃效果 */
   background:
-    linear-gradient(135deg, rgba(16, 18, 32, 0.48), rgba(8, 10, 22, 0.52));
-  border: 1px solid rgba(255, 255, 255, 0.08);
+    linear-gradient(135deg, rgba(16, 18, 32, 0.28), rgba(8, 10, 22, 0.32));
+  border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 12px;
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
@@ -171,7 +172,7 @@ body {
 .menu {
   position: fixed;
   background:
-    linear-gradient(135deg, rgba(18, 20, 34, 0.70), rgba(10, 12, 26, 0.75));
+    linear-gradient(135deg, rgba(18, 20, 34, 0.45), rgba(10, 12, 26, 0.50));
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 10px;
   padding: 4px;
