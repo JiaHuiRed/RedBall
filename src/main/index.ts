@@ -10,6 +10,19 @@ let monitor: Monitor | null = null
 let tray: Tray | null = null
 let quitting = false
 let saveTimer: ReturnType<typeof setTimeout> | null = null
+let topmostGuard: ReturnType<typeof setInterval> | null = null
+
+// 260812 Red 置顶自愈：Windows 的 topmost 带会被其他置顶窗口/系统事件挤占，
+// 且被挤下去后不会自动回来。周期重设 setAlwaysOnTop(true) 把窗口拉回最前；
+// 用户手动取消置顶（右键菜单）后 isAlwaysOnTop() 为 false，跳过不打扰。
+function startTopmostGuard() {
+  if (topmostGuard) clearInterval(topmostGuard)
+  topmostGuard = setInterval(() => {
+    if (!mainWindow || mainWindow.isDestroyed() || quitting) return
+    if (!mainWindow.isVisible() || !mainWindow.isAlwaysOnTop()) return
+    mainWindow.setAlwaysOnTop(true)
+  }, 10000)
+}
 
 // 260719 Red 窗口位置记忆：读写 userData 下的 window-position.json
 function getPositionFile(): string {
@@ -115,6 +128,10 @@ function createWindow() {
 
 app.on('before-quit', () => {
   quitting = true
+  if (topmostGuard) {
+    clearInterval(topmostGuard)
+    topmostGuard = null
+  }
 })
 
 function createTray() {
@@ -145,6 +162,8 @@ function showWindow() {
   }
   mainWindow.show()
   mainWindow.focus()
+  // 260812 Red Windows 上 hide → show 后置顶标志可能丢失（Electron 已知问题），补一次
+  if (mainWindow.isAlwaysOnTop()) mainWindow.setAlwaysOnTop(true)
 }
 
 // 260807 Red 单实例锁：自启与手动启动同时发生时只保留一个实例，避免双份采集进程互抢窗口位置
@@ -161,6 +180,7 @@ if (!gotLock) {
     quitting = false
     createWindow()
     createTray()
+    startTopmostGuard()
 
     monitor = new Monitor()
 
