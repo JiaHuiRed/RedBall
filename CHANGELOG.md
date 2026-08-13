@@ -1,5 +1,14 @@
 # RedBall 更新日志
 
+## 0.0.16（2026-08-13）
+
+### 🐛 修复
+
+- **置顶失效：窗口偷偷跑到其他窗口后面** — 置顶自愈守护用 `isAlwaysOnTop()` 判断是否需要重设，但 Electron 该 API 返回内部缓存标志而非实时窗口状态，窗口被系统踢出 topmost 带（UAC/全屏切换等）后缓存仍是 true，守护永不触发。改为 `userTopmost` 意图标志记录用户开关，只要未手动关闭置顶，每 10 秒无条件重设 `setAlwaysOnTop(true)` 拉回最前。改于 `index.ts`。
+- **右键菜单从未弹出（置顶/开机自启/关闭是死代码）** — 面板整块设为 `-webkit-app-region: drag`，drag 区域吞掉所有鼠标事件，右键弹的是 Windows 系统菜单，自定义菜单从加入起就无法显示。移除 drag 区域，窗口拖动改 renderer 自实现（增量 `move-window` IPC）；托盘菜单补"置顶"开关（checkbox 带勾选），窗口菜单"置顶"项同步勾选状态。改于 `index.ts`、`preload/index.ts`、`app.ts`、`styles.css`。
+
+---
+
 ## 0.0.15（2026-08-08）
 
 ### ✨ 新增
