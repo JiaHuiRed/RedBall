@@ -181,7 +181,7 @@ function showWindow() {
   mainWindow.show()
   mainWindow.focus()
   // 260812 Red Windows 上 hide → show 后置顶标志可能丢失（Electron 已知问题），补一次
-  if (mainWindow.isAlwaysOnTop()) mainWindow.setAlwaysOnTop(true)
+  if (userTopmost) mainWindow.setAlwaysOnTop(true)
 }
 
 // 260807 Red 单实例锁：自启与手动启动同时发生时只保留一个实例，避免双份采集进程互抢窗口位置
