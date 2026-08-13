@@ -30,7 +30,8 @@ body {
     0 8px 40px rgba(0, 0, 0, 0.55),
     inset 0 1px 0 rgba(255, 255, 255, 0.10);
   cursor: grab;
-  -webkit-app-region: drag;
+  /* 260813 Red 移除 -webkit-app-region: drag：drag 区域吞掉右键事件，自定义菜单弹不出来；
+     窗口拖动改由 renderer mousedown/mousemove + move-window IPC 实现 */
   display: flex;
   flex-direction: column;
   gap: 6px;

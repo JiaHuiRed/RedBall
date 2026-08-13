@@ -10,6 +10,7 @@ import { contextBridge, ipcRenderer } from 'electron'
   toggleAlwaysOnTop: () => {
     ipcRenderer.send('toggle-always-on-top')
   },
+  getAlwaysOnTop: (): boolean => ipcRenderer.sendSync('get-always-on-top'),
   closeApp: () => {
     ipcRenderer.send('close-app')
   },

@@ -15,6 +15,7 @@ interface ElectronAPI {
   onStatsUpdate: (callback: (stats: SystemStats) => void) => void
   moveWindow: (dx: number, dy: number) => void
   toggleAlwaysOnTop: () => void
+  getAlwaysOnTop: () => boolean
   closeApp: () => void
   getAutostart: () => boolean
   toggleAutostart: (enabled: boolean) => void
@@ -106,6 +107,7 @@ function updateStats(s: SystemStats) {
 
 const menu = document.getElementById('menu')!
 const menuAutostart = document.getElementById('menu-autostart')!
+const menuPin = document.getElementById('menu-pin')!
 
 document.addEventListener('contextmenu', (e: MouseEvent) => {
   e.preventDefault()
@@ -118,11 +120,44 @@ document.addEventListener('click', () => {
   menu.classList.add('hidden')
 })
 
-document.getElementById('menu-pin')!.addEventListener('click', () => {
-  api.toggleAlwaysOnTop()
+// 260813 Red 窗口拖动改为 renderer 自实现：此前 #app 是 app-region drag，
+// drag 区域会吞掉右键事件导致自定义菜单（置顶/开机自启/关闭）永远弹不出来。
+// 现在用 move-window IPC 增量移动窗口，右键事件能正常到达页面。
+let dragging = false
+let lastX = 0
+let lastY = 0
+
+document.addEventListener('mousedown', (e: MouseEvent) => {
+  if (e.button !== 0) return
+  // 菜单打开时点菜单项不触发拖动
+  if (!menu.classList.contains('hidden')) return
+  dragging = true
+  lastX = e.screenX
+  lastY = e.screenY
 })
 
-document.getElementById('menu-autostart')!.addEventListener('click', () => {
+document.addEventListener('mousemove', (e: MouseEvent) => {
+  if (!dragging) return
+  const dx = e.screenX - lastX
+  const dy = e.screenY - lastY
+  if (dx === 0 && dy === 0) return
+  lastX = e.screenX
+  lastY = e.screenY
+  api.moveWindow(dx, dy)
+})
+
+document.addEventListener('mouseup', () => {
+  dragging = false
+})
+
+// 置顶开关：勾选状态与主进程 userTopmost 同步
+menuPin.classList.toggle('checked', api.getAlwaysOnTop())
+menuPin.addEventListener('click', () => {
+  api.toggleAlwaysOnTop()
+  menuPin.classList.toggle('checked')
+})
+
+menuAutostart.addEventListener('click', () => {
   const enabled = !api.getAutostart()
   api.toggleAutostart(enabled)
   menuAutostart.classList.toggle('checked', enabled)
@@ -135,6 +170,7 @@ document.getElementById('menu-close')!.addEventListener('click', () => {
 // --- Autostart initial state ---
 
 menuAutostart.classList.toggle('checked', api.getAutostart())
+
 
 // --- Listen for stats ---
 

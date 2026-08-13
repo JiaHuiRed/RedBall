@@ -11,15 +11,19 @@ let tray: Tray | null = null
 let quitting = false
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let topmostGuard: ReturnType<typeof setInterval> | null = null
+// 260813 Red 置顶意图标志：不用 isAlwaysOnTop() 判断——Electron 该 API 返回内部缓存，
+// 窗口被系统踢出 topmost 带（UAC/全屏切换等）后缓存仍是 true，守护会永远不触发。
+// 只要用户没手动取消置顶，就无条件周期重设，把窗口拉回最前。
+let userTopmost = true
 
 // 260812 Red 置顶自愈：Windows 的 topmost 带会被其他置顶窗口/系统事件挤占，
 // 且被挤下去后不会自动回来。周期重设 setAlwaysOnTop(true) 把窗口拉回最前；
-// 用户手动取消置顶（右键菜单）后 isAlwaysOnTop() 为 false，跳过不打扰。
+// 用户手动取消置顶（右键菜单）后跳过，不打扰。
 function startTopmostGuard() {
   if (topmostGuard) clearInterval(topmostGuard)
   topmostGuard = setInterval(() => {
     if (!mainWindow || mainWindow.isDestroyed() || quitting) return
-    if (!mainWindow.isVisible() || !mainWindow.isAlwaysOnTop()) return
+    if (!mainWindow.isVisible() || !userTopmost) return
     mainWindow.setAlwaysOnTop(true)
   }, 10000)
 }
@@ -134,6 +138,24 @@ app.on('before-quit', () => {
   }
 })
 
+function toggleTopmost() {
+  if (!mainWindow) return
+  userTopmost = !userTopmost
+  mainWindow.setAlwaysOnTop(userTopmost)
+  // 托盘菜单勾选状态随动
+  tray?.setContextMenu(buildTrayMenu())
+}
+
+// 260813 Red 托盘加置顶开关：窗口右键自定义菜单因 drag 区域吞事件一直弹不出来，
+// 用户没有任何入口能操作置顶，托盘补一个
+function buildTrayMenu(): Menu {
+  return Menu.buildFromTemplate([
+    { label: '显示', click: () => showWindow() },
+    { label: '置顶', type: 'checkbox', checked: userTopmost, click: toggleTopmost },
+    { label: '退出', click: () => app.quit() }
+  ])
+}
+
 function createTray() {
   // 260721 Red 改用 raw RGBA 生成托盘图标，16x16 适合通知区域
   const trayIcon = createDotIcon(16, 220, 40, 40)
@@ -141,11 +163,7 @@ function createTray() {
   tray = new Tray(trayIcon)
   tray.setToolTip('RedBall')
 
-  const ctx = Menu.buildFromTemplate([
-    { label: '显示', click: () => showWindow() },
-    { label: '退出', click: () => app.quit() }
-  ])
-  tray.setContextMenu(ctx)
+  tray.setContextMenu(buildTrayMenu())
   tray.on('double-click', () => showWindow())
 }
 
@@ -194,9 +212,10 @@ if (!gotLock) {
       mainWindow.setPosition(x + dx, y + dy)
     })
 
-    ipcMain.on('toggle-always-on-top', () => {
-      if (!mainWindow) return
-      mainWindow.setAlwaysOnTop(!mainWindow.isAlwaysOnTop())
+    ipcMain.on('toggle-always-on-top', () => toggleTopmost())
+
+    ipcMain.on('get-always-on-top', (event) => {
+      event.returnValue = userTopmost
     })
 
     ipcMain.on('close-app', () => {
