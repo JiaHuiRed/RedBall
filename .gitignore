@@ -8,6 +8,6 @@ Thumbs.db
 LiteMonitor/
 resources/presentmon/
 .attachments/
-.redcode/stats/
+.redcode/
 script/gen-icon.py
 scripts/gen-icon.js
