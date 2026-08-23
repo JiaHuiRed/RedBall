@@ -9,5 +9,6 @@ LiteMonitor/
 resources/presentmon/
 .attachments/
 .redcode/
+AGENTS.md
 script/gen-icon.py
 scripts/gen-icon.js
