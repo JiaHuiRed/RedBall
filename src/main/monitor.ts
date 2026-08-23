@@ -6,6 +6,12 @@ interface NetSample {
   tx: number
 }
 
+// 260823 Red 单进程 CPU 占用：面板无负载但风扇转的场景（僵尸进程偷吃 CPU）
+export interface ProcInfo {
+  name: string
+  percent: number
+}
+
 export interface SystemStats {
   cpu: number
   memPercent: number
@@ -17,6 +23,7 @@ export interface SystemStats {
   gpuTemp: number | null
   netRx: number
   netTx: number
+  topProcs: ProcInfo[]
 }
 
 export class Monitor {
@@ -27,6 +34,13 @@ export class Monitor {
   private cpuProcess: ChildProcess | null = null
   private gpuCache: { gpuPercent: number | null; vramUsed: number | null; vramTotal: number | null; gpuTemp: number | null } = { gpuPercent: null, vramUsed: null, vramTotal: null, gpuTemp: null }
   private tickCount = 0
+  // 260823 Red 进程 CPU 扫描：常驻 PowerShell 每 3 秒输出全部进程的累计 CPU 秒，
+  // 两帧相减 ÷ 采样间隔 ÷ 核数得到任务管理器口径的单进程百分比
+  private procPs: ChildProcess | null = null
+  private procSample: { data: Map<number, ProcInfo & { cpu: number }>; t: number } | null = null
+  private prevProcSample: { data: Map<number, ProcInfo & { cpu: number }>; t: number } | null = null
+  private procComputedAt = 0
+  private topProcs: ProcInfo[] = []
   // 260719 Red 唤醒恢复：每 30 秒重置 gpuAvailable，避免 sleep/wake 后永久锁死
   private static readonly GPU_RETRY_INTERVAL = 30
  // 260802 Red 网速采样缓存：netstat -e 是阻塞调用，每 3 秒采样一次即可
@@ -36,6 +50,7 @@ export class Monitor {
  private netRate: { rx: number; tx: number } = { rx: 0, tx: 0 }
   start(callback: (stats: SystemStats) => void) {
     this.startCpuMonitor()
+    this.startProcMonitor()
     this.timer = setInterval(() => callback(this.getStats()), 1000)
   }
 
@@ -43,6 +58,10 @@ export class Monitor {
     if (this.cpuProcess) {
       this.cpuProcess.kill()
       this.cpuProcess = null
+    }
+    if (this.procPs) {
+      this.procPs.kill()
+      this.procPs = null
     }
     if (this.timer) {
       clearInterval(this.timer)
@@ -85,6 +104,77 @@ export class Monitor {
       proc.on('exit', () => { this.cpuProcess = null })
       this.cpuProcess = proc
     } catch { /* typeperf not available */ }
+  }
+
+  // 260823 Red 进程 CPU 常驻采集：PowerShell 循环每 3 秒输出一行 `PID~名称~累计CPU秒|...`。
+  // 用 [Console]::Out.WriteLine 直写，绕开 PowerShell 格式化管道 80 列换行的坑；
+  // 输出在子进程内完成，主进程只做管道异步解析，不阻塞 getStats 主循环
+  private startProcMonitor() {
+    const psScript =
+      'while($true){$s=@(Get-Process|Where-Object{$null -ne $_.CPU}|' +
+      'ForEach-Object{"$($_.Id)~$($_.ProcessName)~$([Math]::Round($_.CPU,2))"});' +
+      '[Console]::Out.WriteLine($s -join "|");Start-Sleep -Milliseconds 3000}'
+    try {
+      const proc = spawn('powershell.exe', ['-NoProfile', '-Command', psScript], {
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true
+      })
+
+      let buffer = ''
+      proc.stdout!.on('data', (data: Buffer) => {
+        buffer += data.toString()
+        let nl = buffer.indexOf('\n')
+        while (nl >= 0) {
+          const line = buffer.substring(0, nl).trim()
+          if (line) this.parseProcLine(line)
+          buffer = buffer.substring(nl + 1)
+          nl = buffer.indexOf('\n')
+        }
+        if (buffer.length > 8192) buffer = ''
+      })
+
+      proc.on('error', () => { /* powershell not available */ })
+      proc.on('exit', () => { this.procPs = null })
+      this.procPs = proc
+    } catch { /* powershell not available */ }
+  }
+
+  private parseProcLine(line: string) {
+    const data = new Map<number, ProcInfo & { cpu: number }>()
+    for (const item of line.split('|')) {
+      const [pidStr, name, cpuStr] = item.split('~')
+      const pid = parseInt(pidStr, 10)
+      const cpu = parseFloat(cpuStr)
+      if (pid > 0 && name && !isNaN(cpu)) {
+        data.set(pid, { name, percent: 0, cpu })
+      }
+    }
+    if (data.size > 0) this.procSample = { data, t: Date.now() }
+  }
+
+  // 260823 Red 两帧差值算单进程百分比：delta秒 / delta时间 / 核数 * 100，与任务管理器口径一致；
+  // 进程退出或 CPU 秒回退（系统重置）时计入负数/忽略
+  private computeTopProcs() {
+    const cur = this.procSample
+    if (!cur || cur.t === this.procComputedAt) return
+    this.procComputedAt = cur.t
+    if (this.prevProcSample) {
+      const dt = (cur.t - this.prevProcSample.t) / 1000
+      if (dt > 0 && dt < 20) {
+        const cores = Math.max(1, os.cpus().length)
+        const list: ProcInfo[] = []
+        for (const [pid, c] of cur.data) {
+          const p = this.prevProcSample.data.get(pid)
+          if (!p) continue
+          const dcpu = c.cpu - p.cpu
+          if (dcpu <= 0) continue
+          list.push({ name: c.name, percent: Math.round((dcpu / dt / cores) * 100) })
+        }
+        list.sort((a, b) => b.percent - a.percent)
+        this.topProcs = list.slice(0, 3)
+      }
+    }
+    this.prevProcSample = cur
   }
 
   private getNetSample(): NetSample {
@@ -157,6 +247,9 @@ export class Monitor {
     // CPU (from typeperf background process — already async)
     const cpuPercent = this.cpuUtil
 
+    // 260823 Red 进程 CPU：仅在新样本到达时算一次，3 秒内各 tick 复用
+    this.computeTopProcs()
+
     // Memory (fast, sync, no I/O)
     const totalMem = os.totalmem()
     const usedMem = totalMem - os.freemem()
@@ -173,7 +266,8 @@ export class Monitor {
       vramTotal: this.gpuCache.vramTotal !== null ? parseFloat((this.gpuCache.vramTotal / 1024).toFixed(1)) : null,
       gpuTemp: this.gpuCache.gpuTemp,
       netRx,
-      netTx
+      netTx,
+      topProcs: this.topProcs
     }
   }
 }

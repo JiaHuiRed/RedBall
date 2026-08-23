@@ -2,7 +2,7 @@
 
 > _A floating desktop monitor for CPU, memory, GPU, and network._
 
-[![Version](https://badgen.net/badge/版本/0.0.16/blue)](CHANGELOG.md)
+[![Version](https://badgen.net/badge/版本/0.1.0/blue)](CHANGELOG.md)
 
 **RedBall** 是一个悬浮在桌面的系统监控小工具。不用切窗口、不用开任务管理器 —— 瞄一眼就知道电脑状态。
 
@@ -15,6 +15,7 @@
 - **GPU** — NVIDIA 显卡占用（无独显自动隐藏）
 - **显存** — VRAM 已用 / 总量
 - **网速** — 下行 ▼ / 上行 ▲，自动 K/M 单位换算
+- **进程** — 实时揪出偷吃 CPU 的进程（top3，高占用变色警示）
 - 毛玻璃半透明外观，融合桌面
 - 鼠标拖拽移动、右键菜单（置顶/开机自启/最小化到托盘）
 

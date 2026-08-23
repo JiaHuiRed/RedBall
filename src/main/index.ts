@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from 'electron'
 import { Monitor } from './monitor'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
-import { applyAcrylic, isWin11 } from './acrylic'
+import { applyAcrylic } from './acrylic'
 
 
 let mainWindow: BrowserWindow | null = null
@@ -15,6 +15,11 @@ let topmostGuard: ReturnType<typeof setInterval> | null = null
 // 窗口被系统踢出 topmost 带（UAC/全屏切换等）后缓存仍是 true，守护会永远不触发。
 // 只要用户没手动取消置顶，就无条件周期重设，把窗口拉回最前。
 let userTopmost = true
+
+// 260823 Red 面板固定尺寸：setPosition 在 Windows 高 DPI 下有尺寸漂移 bug（见 move-window），
+// 全局常量供 setBounds/resize 钳制用
+const WIN_W = 380
+const WIN_H = 78
 
 // 260812 Red 置顶自愈：Windows 的 topmost 带会被其他置顶窗口/系统事件挤占，
 // 且被挤下去后不会自动回来。周期重设 setAlwaysOnTop(true) 把窗口拉回最前；
@@ -84,15 +89,16 @@ function createWindow() {
   const winIcon = createDotIcon(32, 220, 40, 40)
 
   // 260802 Red 隐藏任务栏图标：窗口可通过托盘显示/隐藏，无需任务栏入口
-  // 260808 Red 分平台毛玻璃：Win11 原生 acrylic（不透明窗口）；Win10 需透明窗口 + DWM 亚克力（见 acrylic.ts）
+  // 260808 Red 分平台毛玻璃；260823 Red 统一透明窗口 + DWM 亚克力（Win11 native tint 不可控，实测灰蒙蒙，见 acrylic.ts）
   mainWindow = new BrowserWindow({
-    width: 380,
-    height: 56,
+    width: WIN_W,
+    height: WIN_H,
     frame: false,
-    transparent: !isWin11(),
-    backgroundMaterial: isWin11() ? 'acrylic' : 'none',
+    transparent: true,
+    backgroundMaterial: 'none',
     alwaysOnTop: true,
     resizable: false,
+    maximizable: false,
     skipTaskbar: true,
     hasShadow: false,
     icon: winIcon,
@@ -120,6 +126,15 @@ function createWindow() {
     if (!mainWindow) return
     if (saveTimer) clearTimeout(saveTimer)
     saveTimer = setTimeout(() => savePosition(mainWindow!), 300)
+  })
+
+  // 260823 Red 尺寸钳制：Electron 42 在 Windows 高 DPI（150%）下 transparent+frameless 窗口
+  // setPosition 会让 DWM 把尺寸误增（实测 size += 每次位移 dx/dy，从 380x78 一路涨到 640x464）。
+  // 任何路径把窗口改大，立即用 setSize 拉回固定尺寸（相等时不再调用，防循环）。
+  mainWindow.on('resize', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    const [w, h] = mainWindow.getSize()
+    if (w !== WIN_W || h !== WIN_H) mainWindow.setSize(WIN_W, WIN_H)
   })
 
   mainWindow.on('close', (e) => {
@@ -209,7 +224,9 @@ if (!gotLock) {
     ipcMain.on('move-window', (_event, dx: number, dy: number) => {
       if (!mainWindow) return
       const [x, y] = mainWindow.getPosition()
-      mainWindow.setPosition(x + dx, y + dy)
+      // 260823 Red 用 setBounds 固定尺寸：只用 setPosition（旧代码）在高 DPI 屏上
+      // 每次位移 dx/dy 都会让 DWM 把窗口尺寸误增 dx/dy，拖动几次就全屏化。
+      mainWindow.setBounds({ x: x + dx, y: y + dy, width: WIN_W, height: WIN_H })
     })
 
     ipcMain.on('toggle-always-on-top', () => toggleTopmost())

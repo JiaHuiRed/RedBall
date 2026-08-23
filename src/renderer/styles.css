@@ -169,6 +169,36 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── 进程检测行（260823 Red 新增：暴露偷吃 CPU 的单个进程） ── */
+.proc-row {
+  height: 14px;
+}
+
+.proc-list {
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.proc-item {
+  margin-right: 8px;
+}
+
+.proc-item.warn {
+  color: #fb923c;
+}
+
+.proc-item.crit {
+  color: #ef4444;
+}
+
 /* ── 右键菜单（毛玻璃） ── */
 .menu {
   position: fixed;

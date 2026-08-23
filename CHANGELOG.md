@@ -1,5 +1,23 @@
 # RedBall 更新日志
 
+## 0.1.0（2026-08-23）
+
+### ✨ 新增
+
+- **进程级 CPU 检测（PROC 行）** — 面板新增一行实时进程监控：常驻 PowerShell 每 3 秒采样 CPU 时间，两帧差值换算单进程占用百分比，top3 进程显示在面板上。单进程 ≥20%（约半核）黄色、≥40%（约 1 核）红色警示 —— 专治"面板看着没负载但风扇转"（僵尸进程/后台脚本偷吃 CPU）。改于 `monitor.ts`、`index.html`、`app.ts`、`styles.css`、`index.ts`。
+
+### 🐛 修复
+
+- **Win11 面板灰蒙蒙** — 原 Win11 走 Electron 原生 `setBackgroundMaterial('acrylic')`：tint 由系统主题决定（浅色模式=浅灰白）且无法自定义，叠上 CSS 半透明深蓝底就成了中性灰。放弃原生路径，Win10/Win11 统一走 koffi FFI 调 DWM `SetWindowCompositionAttribute` + 自定义深蓝 tint（ABGR 0xe022140e），两台机器观感一致。改于 `acrylic.ts`、`index.ts`。
+- **拖动几次窗口越来越大（最终全屏化）** — 实测 Electron 42 在 Windows 高 DPI（150%）下，transparent+frameless 窗口 `setPosition` 会让 DWM 把尺寸误增：每次窗口尺寸 += 当次位移（380×78 一路涨到 640×464）。改 `setBounds` 固定 380×78 + `resize` 事件钳制回弹双保险。改于 `index.ts`。
+- **拖不到副屏** — 拖动是 renderer 自实现（增量 `move-window` IPC），窗口仅 380×78，鼠标滑出边框后 Chromium 停止派发 mousemove，窗口停在原地。改为 `setPointerCapture` + pointer 事件系，鼠标飞出窗口仍持续跟踪。改于 `app.ts`。
+
+### 🛠 其他
+
+- 窗口 `maximizable: false`，防 Win11 Snap 布局误触发全屏。改于 `index.ts`。
+
+---
+
 ## 0.0.16（2026-08-13）
 
 ### 🐛 修复

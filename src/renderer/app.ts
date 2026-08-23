@@ -9,6 +9,7 @@ interface SystemStats {
   gpuTemp: number | null
   netRx: number
   netTx: number
+  topProcs: { name: string; percent: number }[]
 }
 
 interface ElectronAPI {
@@ -101,6 +102,20 @@ function updateStats(s: SystemStats) {
   // Network
   document.getElementById('net-rx')!.textContent = fmtSpeed(s.netRx)
   document.getElementById('net-tx')!.textContent = fmtSpeed(s.netTx)
+
+  // 260823 Red 进程 top3：单进程 ≥20%（≈半核）黄色警示，≥40%（≈1 核以上）红色
+  const procList = document.getElementById('proc-list')!
+  if (s.topProcs && s.topProcs.length > 0) {
+    procList.replaceChildren()
+    for (const p of s.topProcs) {
+      const el = document.createElement('span')
+      el.className = 'proc-item' + (p.percent >= 40 ? ' crit' : p.percent >= 20 ? ' warn' : '')
+      el.textContent = p.name + ' ' + p.percent + '%'
+      procList.appendChild(el)
+    }
+  } else {
+    procList.textContent = '--'
+  }
 }
 
 // --- Right-click menu ---
@@ -127,16 +142,20 @@ let dragging = false
 let lastX = 0
 let lastY = 0
 
-document.addEventListener('mousedown', (e: MouseEvent) => {
+document.addEventListener('pointerdown', (e: PointerEvent) => {
   if (e.button !== 0) return
   // 菜单打开时点菜单项不触发拖动
   if (!menu.classList.contains('hidden')) return
   dragging = true
   lastX = e.screenX
   lastY = e.screenY
+  // 260823 Red pointer capture：窗口只有 380x78，拖动时鼠标滑出窗口边框，
+  // 不捕获的话 Chromium 立刻停止派发 mousemove，窗口就停在原地（拖不到副屏）。
+  // capture 后鼠标飞出窗口仍持续派发，直到 mouseup/pointercancel。
+  document.documentElement.setPointerCapture(e.pointerId)
 })
 
-document.addEventListener('mousemove', (e: MouseEvent) => {
+document.addEventListener('pointermove', (e: PointerEvent) => {
   if (!dragging) return
   const dx = e.screenX - lastX
   const dy = e.screenY - lastY
@@ -146,7 +165,11 @@ document.addEventListener('mousemove', (e: MouseEvent) => {
   api.moveWindow(dx, dy)
 })
 
-document.addEventListener('mouseup', () => {
+document.addEventListener('pointerup', () => {
+  dragging = false
+})
+
+document.addEventListener('pointercancel', () => {
   dragging = false
 })
 

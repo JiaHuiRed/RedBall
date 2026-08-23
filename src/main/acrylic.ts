@@ -1,16 +1,10 @@
 import { BrowserWindow } from 'electron'
-import { release } from 'os'
 
-// ── 分平台亚克力（毛玻璃） ──
-// Win11 22H2+：Electron 原生 backgroundMaterial('acrylic')
-// Win10：DWM SetWindowCompositionAttribute(WCA_ACCENT_POLICY=19) + ACCENT_ENABLE_ACRYLICBLURBEHIND=4，
-//        经 koffi（N-API FFI）调用；加载失败回退纯半透明，不影响主流程
-
-// Win11 build 号 >= 22000
-export function isWin11(): boolean {
-  const build = Number(release().split('.')[2])
-  return build >= 22000
-}
+// ── 亚克力（毛玻璃）统一走 DWM FFI ──
+// 260823 Red 放弃 Win11 原生 backgroundMaterial('acrylic')：Electron 无法自定义 tint，
+// 颜色随系统主题走（浅色模式=浅灰白），面板实测灰蒙蒙；koffi FFI 可自定义深色 tint，Win10 已实测通过
+// DWM SetWindowCompositionAttribute(WCA_ACCENT_POLICY=19) + ACCENT_ENABLE_ACRYLICBLURBEHIND=4，
+// 经 koffi（N-API FFI）调用；加载失败回退纯半透明，不影响主流程
 
 const WCA_ACCENT_POLICY = 19
 const ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
@@ -49,20 +43,21 @@ function initKoffi(): void {
       }
       return setWca(hwnd, koffi.address(data))
     }
-  } catch {
+  } catch (e) {
+    // 260823 Red koffi 初始化失败时输出原因（此前静默吞掉，回退纯半透明无从排查）
+    console.error('[acrylic] initKoffi failed:', e)
     applyDwmAcrylic = null
   }
 }
 
 export function applyAcrylic(win: BrowserWindow): void {
-  if (isWin11()) {
-    win.setBackgroundMaterial('acrylic')
-    return
-  }
   if (!applyDwmAcrylic) initKoffi()
   try {
-    applyDwmAcrylic?.(win.getNativeWindowHandle())
-  } catch {
+    const ok = applyDwmAcrylic?.(win.getNativeWindowHandle())
+    // 260823 Red 输出 FFI 结果（成功/失败/false），成功与否不再靠猜
+    console.log('[acrylic] applyAcrylic ok =', ok)
+  } catch (e) {
     // FFI 失败保持纯半透明兜底
+    console.error('[acrylic] applyAcrylic failed:', e)
   }
 }
