@@ -1,5 +1,17 @@
 # RedBall 更新日志
 
+## 0.1.1（2026-09-06）
+
+### 🐛 修复
+
+- **全屏游戏时悬浮球消失/退到普通窗口后面** — 双根因双修：①主屏有真全屏窗口（FSO/独占）时 Windows 会周期性剥离全系统置顶窗口的 WS_EX_TOPMOST（副屏同遭殃），置顶守护周期 10s 提到 1s，且不再依赖 setAlwaysOnTop（其内部缓存会短路真实调用），改用 FFI 直查真实置顶位、缺位强插回——剥离有滞后，插回跑赢剥离即稳定置顶（实测 NBA2K27 全屏 125s 逐秒采样置顶位零掉 0）；②窗口被系统隐藏后自动恢复（showInactive 不抢游戏焦点），新增 `userHiddenByUser` 区分用户主动隐藏，托盘关闭后不被守护误拉回。改于 `index.ts`、`acrylic.ts`。
+- **采集子进程死一次永久冻结** — typeperf / PowerShell 采集进程意外退出后 5s 自动重启，CPU/进程行不再永久冻结。改于 `monitor.ts`。
+- **GPU 行偶发消失 30s** — nvidia-smi 单次超时即判不可用太敏感，改连续 3 次失败才关闸（成功即清零）。改于 `monitor.ts`。
+- **窗口拖出屏幕后重启找不回** — 位置存盘/恢复时按虚拟桌面 workArea 钳制（40px 边距）。改于 `index.ts`。
+- **圆角四角漏小三角** — Chromium 的 backdrop-filter 取样区不认 border-radius，四角按方形模糊漏出；改用 clip-path 强制圆角裁剪。改于 `styles.css`。
+
+---
+
 ## 0.1.0（2026-08-23）
 
 ### ✨ 新增
