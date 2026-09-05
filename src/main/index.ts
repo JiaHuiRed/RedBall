@@ -1,8 +1,8 @@
-import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Tray, nativeImage, Menu, screen } from 'electron'
 import { Monitor } from './monitor'
 import { join } from 'path'
 import { readFileSync, writeFileSync } from 'fs'
-import { applyAcrylic } from './acrylic'
+import { applyAcrylic, ensureRealTopmost } from './acrylic'
 
 
 let mainWindow: BrowserWindow | null = null
@@ -24,14 +24,35 @@ const WIN_H = 78
 // 260812 Red 置顶自愈：Windows 的 topmost 带会被其他置顶窗口/系统事件挤占，
 // 且被挤下去后不会自动回来。周期重设 setAlwaysOnTop(true) 把窗口拉回最前；
 // 用户手动取消置顶（右键菜单）后跳过，不打扰。
+// 260905 Red 守护补自愈路径：原守护只处理"可见但被挤出 topmost 带"，
+// 现在发现窗口被系统藏掉（非用户主动隐藏）时也拉回来——游戏独占全屏
+// 会藏置顶窗口，Electron transparent 窗口被藏后不会自动恢复，只能托盘救。
 function startTopmostGuard() {
   if (topmostGuard) clearInterval(topmostGuard)
   topmostGuard = setInterval(() => {
     if (!mainWindow || mainWindow.isDestroyed() || quitting) return
-    if (!mainWindow.isVisible() || !userTopmost) return
-    mainWindow.setAlwaysOnTop(true)
-  }, 10000)
-}
+    if (!userTopmost) return
+    if (mainWindow.isVisible()) {
+      // 260905 Red 不再用 setAlwaysOnTop（Electron 缓存短路，踢出带后重设无效），
+      // 改为 FFI 查真实 topmost 位、缺位强插；游戏全屏占前台时系统拒绝插入，
+      // 等游戏退出后守护下一轮自动救回
+      ensureRealTopmost(mainWindow)
+    } else if (!userHiddenByUser) {
+      // 260905 Red 被全屏游戏藏掉的窗口自动恢复。
+      // 用 showInactive 不抢焦点：守护周期触发，showWindow 的 focus() 会每 10 秒
+      // 把全屏游戏打回桌面，比窗口消失还烦
+      mainWindow.showInactive()
+      ensureRealTopmost(mainWindow)
+    }
+      // 260905 Red 守护 1s 一跳：FFI 查位开销极小；全屏压制一结束球 1s 内自动回，
+      // 原 10s 周期退出全屏后要干等
+    }, 1000)
+  }
+
+// 260905 Red 全屏游戏自愈标志：区分"用户主动隐藏"（托盘关闭/右键菜单）与
+// "系统藏掉"（游戏独占全屏时 Windows 会藏所有置顶窗口，Electron transparent 窗口
+// 被藏后不会自动恢复）。只有用户主动隐藏才允许窗口保持不可见。
+let userHiddenByUser = false
 
 // 260719 Red 窗口位置记忆：读写 userData 下的 window-position.json
 function getPositionFile(): string {
@@ -47,8 +68,26 @@ function loadPosition(): { x: number; y: number } | null {
   return null
 }
 
+// 260905 Red 位置钳制：pointer capture 拖动可以把窗口甩出屏幕外，位置还会写进
+// 配置文件，重启后窗口回到屏幕外、UI 上无路可救。存/取都按虚拟桌面边界钳一次，
+// 保证窗口至少有 40px 留在屏幕内。
+function clampPosition(x: number, y: number): { x: number; y: number } {
+  const margin = 40
+  const displays = screen.getAllDisplays()
+  const left = Math.min(...displays.map(d => d.workArea.x))
+  const top = Math.min(...displays.map(d => d.workArea.y))
+  const right = Math.max(...displays.map(d => d.workArea.x + d.workArea.width))
+  const bottom = Math.max(...displays.map(d => d.workArea.y + d.workArea.height))
+  return {
+    x: Math.min(Math.max(x, left - WIN_W + margin), right - margin),
+    y: Math.min(Math.max(y, top - WIN_H + margin), bottom - margin)
+  }
+}
+
 function savePosition(win: BrowserWindow) {
-  const [x, y] = win.getPosition()
+  // 260905 Red 保存前钳制，屏幕外位置不入盘
+  const [rawX, rawY] = win.getPosition()
+  const { x, y } = clampPosition(rawX, rawY)
   try {
     writeFileSync(getPositionFile(), JSON.stringify({ x, y }))
   } catch { /* 忽略写入失败 */ }
@@ -112,10 +151,11 @@ function createWindow() {
 
   mainWindow.setIcon(winIcon)
 
-  // 260719 Red 恢复上次保存的窗口位置
+  // 260719 Red 恢复上次保存的窗口位置；260905 Red 恢复前钳制，屏幕外的旧存档也能救回来
   const savedPos = loadPosition()
   if (savedPos) {
-    mainWindow.setPosition(savedPos.x, savedPos.y)
+    const fixed = clampPosition(savedPos.x, savedPos.y)
+    mainWindow.setPosition(fixed.x, fixed.y)
   }
 
   mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
@@ -140,6 +180,8 @@ function createWindow() {
   mainWindow.on('close', (e) => {
     if (!quitting) {
       e.preventDefault()
+      // 260905 Red 用户点关闭 = 主动隐藏，守护不要把它拉回来
+      userHiddenByUser = true
       mainWindow?.hide()
     }
   })
@@ -195,8 +237,10 @@ function showWindow() {
   }
   mainWindow.show()
   mainWindow.focus()
-  // 260812 Red Windows 上 hide → show 后置顶标志可能丢失（Electron 已知问题），补一次
-  if (userTopmost) mainWindow.setAlwaysOnTop(true)
+  // 260905 Red 手动显示过就算用户意图恢复，守护不再重复救
+  userHiddenByUser = false
+  // 260905 Red 同守护：真实位缺失时 FFI 强插，绕开 Electron 缓存短路
+  if (userTopmost) ensureRealTopmost(mainWindow)
 }
 
 // 260807 Red 单实例锁：自启与手动启动同时发生时只保留一个实例，避免双份采集进程互抢窗口位置
@@ -237,6 +281,8 @@ if (!gotLock) {
 
     ipcMain.on('close-app', () => {
       if (!mainWindow) return
+      // 260905 Red 用户主动隐藏，守护不要拉回
+      userHiddenByUser = true
       mainWindow.hide()
     })
 

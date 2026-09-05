@@ -29,6 +29,9 @@ export interface SystemStats {
 export class Monitor {
   private prevNet: NetSample | null = null
   private gpuAvailable = true
+  // 260905 Red GPU 连续失败计数：游戏满载时 nvidia-smi 偶发超时，单次失败不该让
+  // GPU 行整个消失 30 秒；连续 3 次失败才判 GPU 不可用
+  private gpuFailStreak = 0
   private timer: ReturnType<typeof setInterval> | null = null
   private cpuUtil = 0
   private cpuProcess: ChildProcess | null = null
@@ -41,6 +44,10 @@ export class Monitor {
   private prevProcSample: { data: Map<number, ProcInfo & { cpu: number }>; t: number } | null = null
   private procComputedAt = 0
   private topProcs: ProcInfo[] = []
+  // 260905 Red 采集进程自动复活：typeperf/PowerShell 意外退出（被杀/崩溃）后延迟重启，
+  // 否则 CPU/进程 top3 会静默冻结在最后一个值，看着像没负载其实是数据死了
+  private cpuRestartTimer: ReturnType<typeof setTimeout> | null = null
+  private procRestartTimer: ReturnType<typeof setTimeout> | null = null
   // 260719 Red 唤醒恢复：每 30 秒重置 gpuAvailable，避免 sleep/wake 后永久锁死
   private static readonly GPU_RETRY_INTERVAL = 30
  // 260802 Red 网速采样缓存：netstat -e 是阻塞调用，每 3 秒采样一次即可
@@ -55,6 +62,9 @@ export class Monitor {
   }
 
   stop() {
+    // 260905 Red 停止时清掉重启定时器，防止停了还被复活
+    if (this.cpuRestartTimer) { clearTimeout(this.cpuRestartTimer); this.cpuRestartTimer = null }
+    if (this.procRestartTimer) { clearTimeout(this.procRestartTimer); this.procRestartTimer = null }
     if (this.cpuProcess) {
       this.cpuProcess.kill()
       this.cpuProcess = null
@@ -101,7 +111,16 @@ export class Monitor {
       })
 
       proc.on('error', () => { /* typeperf not available */ })
-      proc.on('exit', () => { this.cpuProcess = null })
+      proc.on('exit', () => {
+        this.cpuProcess = null
+        // 260905 Red 延迟 5s 重启；只在监控运行中才复活（stop 后 timer 为 null）
+        if (!this.cpuRestartTimer) {
+          this.cpuRestartTimer = setTimeout(() => {
+            this.cpuRestartTimer = null
+            if (this.timer && !this.cpuProcess) this.startCpuMonitor()
+          }, 5000)
+        }
+      })
       this.cpuProcess = proc
     } catch { /* typeperf not available */ }
   }
@@ -134,7 +153,16 @@ export class Monitor {
       })
 
       proc.on('error', () => { /* powershell not available */ })
-      proc.on('exit', () => { this.procPs = null })
+      proc.on('exit', () => {
+        this.procPs = null
+        // 260905 Red 延迟 5s 重启；只在监控运行中才复活（stop 后 timer 为 null）
+        if (!this.procRestartTimer) {
+          this.procRestartTimer = setTimeout(() => {
+            this.procRestartTimer = null
+            if (this.timer && !this.procPs) this.startProcMonitor()
+          }, 5000)
+        }
+      })
       this.procPs = proc
     } catch { /* powershell not available */ }
   }
@@ -206,6 +234,8 @@ export class Monitor {
         { encoding: 'utf8', timeout: 3000 }
       )
       const parts = out.trim().split(', ')
+      // 260905 Red 成功即清零失败计数
+      this.gpuFailStreak = 0
       return {
         gpuPercent: parts[0] ? parseFloat(parts[0]) : null,
         vramUsed: parts[1] ? parseFloat(parts[1]) : null,
@@ -213,7 +243,9 @@ export class Monitor {
         gpuTemp: parts[3] ? parseFloat(parts[3]) : null
       }
     } catch {
-      this.gpuAvailable = false
+      // 260905 Red 单次失败只计 streak，连续 3 次才关闸（每 30s 重置 gpuAvailable 重试的机制不变）
+      this.gpuFailStreak++
+      if (this.gpuFailStreak >= 3) this.gpuAvailable = false
       return { gpuPercent: null, vramUsed: null, vramTotal: null, gpuTemp: null }
     }
   }
